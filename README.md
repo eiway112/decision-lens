@@ -21,15 +21,7 @@
 - 只需要一个事实答案的查询
 - 已经有明确正确性判据、不需要权衡的问题
 
-下面这些也不归它管（各有专责）：
-
-| 不做 | 交给 |
-|---|---|
-| 技能目录、frontmatter、打包 | `skill-creator` |
-| 多模型分发、外部报告复核 | `cross-review` |
-| 技能行为测试与回归 | `skill-qa-tester` |
-| 知识摄入、蒸馏、台账 | `agent-wiki` |
-| 高后果领域专家包 | `build-expert` |
+下面这些也不归它管，各有专责——完整分工见 `SKILL.md` 的「本技能不做什么」，**那里是唯一定义点**：`skill-creator` 管技能目录与打包、`cross-review` 管多模型分发与外部复核、`skill-qa-tester` 管行为测试与回归、`agent-wiki` 管知识摄入与台账、`build-expert` 管高后果领域专家包。
 
 ---
 
