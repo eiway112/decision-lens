@@ -2,6 +2,13 @@
 
 只记已发生的变更。
 
+## v1.0.4（2026-10-27）
+
+- 新增 GitHub Actions 工作流 `.github/workflows/mirror-to-gitee.yml`：GitHub `main` 与全部 tag
+  单向镜像到 Gitee，推完回读远端校验；失败时完整回显 stderr，不做关键词过滤。
+- **判定逻辑零改动**（`SKILL.md` 正文、`references/`、`scripts/` 均未变）。README 的文件计数、
+  目录树与「本仓含什么」表同步更新为本版实际（16 个文件），否则发布物自带过期计数。
+
 ## v1.0.3（2026-10-27）
 
 - 修 README「版本与迭代」的过期陈述：v1.0.2 发布时该节仍写「当前版本 1.0.1」，

@@ -1,0 +1,102 @@
+# Gitee 单向镜像：GitHub → Gitee
+#
+# 设计要点（每条都有实测依据，改动前先读 _维护/ 与失败模式库）：
+#   · 方向唯一，Gitee 侧任何手工提交都会被下次推送覆盖——这是意图，不是缺陷。
+#   · 不用 `git push --mirror`：Gitee 拒 hidden ref 且**部分成功**（main 推了、tag 全丢、退出码非 0）。
+#     故显式列 ref，main 与 tags 分两步推、各自验返回码。
+#   · 失败时完整回显 stderr，不做关键词过滤：过滤会把 `Auth error: 404` 这类真实原因全丢掉，只剩空的 Error 行。
+#   · 推完必须回读远端：推送返回码不是同步证据。tags 一并校验，否则部分成功形态会被漏判。
+#   · checkout 必须 `fetch-tags: true`：不取 tag 时 `git push --tags` 只推本地已有 tag，
+#     表现为"main 同步了、tag 没同步"，且不打任何错误。
+#   · 固定 `ref: main`：tag push 事件会让默认 checkout 停在 detached HEAD，本地没有 main 分支可推。
+name: mirror-to-gitee
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main with all tags
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Configure Gitee credentials
+        run: |
+          set -euo pipefail
+          mkdir -p $HOME/.ssh
+          printf '%s\n' "${{ secrets.GITEE_SSH_KEY }}" > $HOME/.ssh/id_ci
+          chmod 600 $HOME/.ssh/id_ci
+          # 主机公钥取自 `ssh-keyscan -t ed25519 gitee.com` 实测，勿凭印象改
+          cat > $HOME/.ssh/known_hosts <<'EOF'
+          gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN
+          EOF
+          chmod 644 $HOME/.ssh/known_hosts
+          # 这里用不带引号的 EOF：ssh config 不展开 $HOME，必须让 shell 先展开成绝对路径写进去。
+          # 带引号的 <<'EOF' 会把 "$HOME/.ssh/id_ci" 原样落盘，ssh 解析时找不到该文件。
+          cat > $HOME/.ssh/config <<EOF
+          Host gitee.com
+            IdentityFile $HOME/.ssh/id_ci
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 $HOME/.ssh/config
+          git config --global user.name "eiway112"
+          git config --global user.email "${{ vars.GITEE_USER_EMAIL }}"
+          git remote add gitee "git@gitee.com:${{ vars.GITEE_OWNER }}/decision-lens.git"
+
+      - name: Mirror main and tags
+        run: |
+          set +e
+          git push --force gitee "refs/heads/main:refs/heads/main" > /tmp/push.log 2>&1
+          RC=$?
+          set -e
+          if [ "$RC" -ne 0 ]; then
+            echo "::error::main 推送失败，退出码 $RC。完整输出（未经过滤）："
+            tr '\n' ';' < /tmp/push.log | sed 's/;/; /g'
+            exit 1
+          fi
+          set +e
+          git push --force gitee --tags > /tmp/tags.log 2>&1
+          RC=$?
+          set -e
+          if [ "$RC" -ne 0 ]; then
+            echo "::error::tag 推送失败（main 已同步，tag 未同步）。完整输出："
+            tr '\n' ';' < /tmp/tags.log | sed 's/;/; /g'
+            exit 1
+          fi
+
+      - name: Verify mirror by remote read-back
+        run: |
+          set -euo pipefail
+          LOCAL="$(git rev-parse main)"
+          REMOTE="$(git ls-remote gitee refs/heads/main | cut -f1)"
+          # 用 if 而非 `[ 条件 ] && { ...; }`：后者在条件为假时返回 1，
+          # 配合 set -e 会让"校验通过"被当成失败退出。
+          if [ -z "$REMOTE" ]; then
+            echo "::error::Gitee 端读不到 main"
+            exit 1
+          fi
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "::error::main SHA 不一致：Local=$LOCAL Remote=$REMOTE"
+            exit 1
+          fi
+          LOCAL_TAGS="$(git ls-remote --tags origin | awk '{print $2}' | sort)"
+          REMOTE_TAGS="$(git ls-remote --tags gitee | awk '{print $2}' | sort)"
+          if [ "$LOCAL_TAGS" != "$REMOTE_TAGS" ]; then
+            echo "::error::tag 集合不一致"
+            echo "本地：$LOCAL_TAGS"
+            echo "远端：$REMOTE_TAGS"
+            exit 1
+          fi
+          echo "镜像校验通过 main=$LOCAL，tag 集合与本地一致"

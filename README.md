@@ -241,6 +241,8 @@ decision-lens/
 ├── SKILL.md                          ← 主链路 S0-S8 · 八要素模板 · 加载索引
 ├── README.md / LICENSE / CHANGELOG.md
 ├── .gitattributes / .gitignore
+├── .github/workflows/
+│   └── mirror-to-gitee.yml           ← Gitee 单向镜像（只服务发布，与技能使用无关）
 ├── references/
 │   ├── forms-and-routing.md          ← 分类 + 30 格映射表 + 8 互斥组（每次必读）
 │   ├── lens-decide.md                ← 18 张：选型 / 取舍 / 是否做
@@ -256,11 +258,12 @@ decision-lens/
 
 ## 本仓含什么
 
-本仓即完整技能，共 15 个文件：根级 6 个（`SKILL.md`、`README.md`、`LICENSE`、`CHANGELOG.md`、`.gitattributes`、`.gitignore`）、`references/` 8 个、`scripts/` 1 个。
+本仓即完整技能，共 16 个文件：根级 6 个（`SKILL.md`、`README.md`、`LICENSE`、`CHANGELOG.md`、`.gitattributes`、`.gitignore`）、`references/` 8 个、`scripts/` 1 个、`.github/workflows/` 1 个。
 
 | 类别 | 随包 | 不随包 |
 |---|---|---|
 | 技能本体 | `SKILL.md` ＋ 三件套 ＋ 行尾与忽略配置，6 个 | — |
+| 仓库基础设施 | `.github/workflows/mirror-to-gitee.yml` 1 个（Gitee 镜像用，与技能使用无关） | — |
 | 判定资料 | `references/` 8 个（三卷透镜 ＋ 路由 ＋ 交接 ＋ 样例 ＋ 来源） | 透镜库的原始素材底稿（含未脱敏出处与逐字引文） |
 | 机检 | `scripts/check_lens_brief.py` 1 个 | — |
 | 过程记录 | — | 裁撤条目的仓外留存件、发布与核验记录 |
